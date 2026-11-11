@@ -1,0 +1,61 @@
+scope: my_cluster
+name: postgresql1
+
+restapi:
+  listen: pg-slave:8008
+  connect_address: pg-slave:8008
+
+zookeeper:
+  hosts:
+    - zoo:2181
+
+bootstrap:
+  dcs:
+    ttl: 30
+    loop_wait: 10
+    retry_timeout: 10
+    maximum_lag_on_failover: 10485760
+    master_start_timeout: 300
+    synchronous_mode: true
+    postgresql:
+      use_pg_rewind: true
+      use_slots: true
+      parameters:
+        wal_level: replica
+        hot_standby: "on"
+        wal_keep_segments: 8
+        max_wal_senders: 10
+        max_replication_slots: 10
+        wal_log_hints: "on"
+        archive_mode: "always"
+        archive_timeout: 1800s
+        archive_command: mkdir -p /tmp/wal_archive && test ! -f /tmp/wal_archive/%f && cp %p /tmp/wal_archive/%f
+
+  pg_hba:
+    - host replication replicator 0.0.0.0/0 md5
+    - host all all 0.0.0.0/0 md5
+
+postgresql:
+  listen: 0.0.0.0:5432
+  connect_address: pg-slave:5432
+  data_dir: /var/lib/postgresql/data/postgresql1
+  bin_dir: /usr/lib/postgresql/15/bin
+  pgpass: /tmp/pgpass1
+  authentication:
+    replication:
+      username: replicator
+      password: rep-pass
+    superuser:
+      username: postgres
+      password: postgres
+  parameters:
+    unix_socket_directories: '.'
+
+watchdog:
+  mode: off
+
+tags:
+  nofailover: false
+  noloadbalance: false
+  clonefrom: false
+  nosync: false
